@@ -1,0 +1,259 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+// Update project schema
+const updateProjectSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  description: z.string().optional(),
+  status: z.enum(["active", "completed", "on-hold"]).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().nullable().optional(),
+  managerId: z.string().min(1, "Manager ID is required").optional(),
+  teamMembers: z.array(z.string()).optional(),
+});
+
+type ProjectWithManager = {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  startDate: Date;
+  endDate: Date | null;
+  managerId: string;
+  teamMembers: string;
+  createdAt: Date;
+  updatedAt: Date;
+  manager: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  };
+};
+
+// Helper function to format project response
+const formatProjectResponse = (project: ProjectWithManager) => ({
+  id: project.id,
+  name: project.name,
+  description: project.description,
+  status: project.status,
+  startDate: project.startDate.toISOString(),
+  endDate: project.endDate?.toISOString() || null,
+  managerId: project.managerId,
+  teamMembers: JSON.parse(project.teamMembers as string),
+  createdAt: project.createdAt.toISOString(),
+  updatedAt: project.updatedAt.toISOString(),
+  manager: {
+    id: project.manager.id,
+    name: project.manager.name,
+    email: project.manager.email,
+    image: project.manager.image,
+  },
+});
+
+export async function GET(
+  req: Request,
+  { params }: { params: { projectId: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: params.projectId },
+      include: {
+        manager: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has access to this project
+    const hasAccess = 
+      project.managerId === session.user.id ||
+      JSON.parse(project.teamMembers).includes(session.user.id);
+    
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Access denied" },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json({
+      data: formatProjectResponse(project as ProjectWithManager),
+    });
+  } catch (error) {
+    console.error("[PROJECT_GET]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: { projectId: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check if project exists and user has access
+    const existingProject = await prisma.project.findUnique({
+      where: { id: params.projectId },
+    });
+
+    if (!existingProject) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    // Only project manager can update the project
+    if (existingProject.managerId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Only the project manager can update this project" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const validation = updateProjectSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const { name, description, status, startDate, endDate, teamMembers, managerId } = validation.data;
+
+    // If changing manager, verify the new manager exists
+    if (managerId && managerId !== existingProject.managerId) {
+      const newManager = await prisma.user.findUnique({
+        where: { id: managerId },
+      });
+
+      if (!newManager) {
+        return NextResponse.json(
+          { error: "New manager not found" },
+          { status: 404 }
+        );
+      }
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id: params.projectId },
+      data: {
+        name,
+        description,
+        status,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
+        managerId,
+        teamMembers: teamMembers ? JSON.stringify(teamMembers) : undefined,
+      },
+      include: {
+        manager: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      data: formatProjectResponse(updatedProject as ProjectWithManager),
+    });
+  } catch (error) {
+    console.error("[PROJECT_UPDATE]", error);
+    return NextResponse.json(
+      { error: "Failed to update project" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { projectId: string } }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check if project exists and user is the manager
+    const project = await prisma.project.findUnique({
+      where: { id: params.projectId },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    // Only project manager can delete the project
+    if (project.managerId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Only the project manager can delete this project" },
+        { status: 403 }
+      );
+    }
+
+    // Delete related tasks first
+    await prisma.task.deleteMany({
+      where: { projectId: params.projectId },
+    });
+
+    // Then delete the project
+    await prisma.project.delete({
+      where: { id: params.projectId },
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("[PROJECT_DELETE]", error);
+    return NextResponse.json(
+      { error: "Failed to delete project" },
+      { status: 500 }
+    );
+  }
+}
