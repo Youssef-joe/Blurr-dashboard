@@ -169,9 +169,9 @@ function getStatusVariant(status: string) {
     case "active":
       return "default";
     case "completed":
-      return "success";
+      return "secondary"; // Changed from "success" to "secondary"
     case "on-hold":
-      return "warning";
+      return "destructive"; // Changed from "warning" to "destructive"
     default:
       return "outline";
   }

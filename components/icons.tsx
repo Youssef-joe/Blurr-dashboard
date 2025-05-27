@@ -4,16 +4,24 @@ import {
   Moon,
   SunMedium,
   Twitter,
+  Send,
+  Plus,
+  Edit,
+  Trash2,
   type Icon as LucideIcon,
 } from "lucide-react";
 
-export type Icon = LucideIcon;
+export type Icon = typeof LucideIcon;
 
 export const Icons = {
   sun: SunMedium,
   moon: Moon,
   twitter: Twitter,
   spinner: Loader2,
+  send: Send,
+  plus: Plus,
+  edit: Edit,
+  trash: Trash2,
   google: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

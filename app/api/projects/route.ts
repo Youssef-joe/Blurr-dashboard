@@ -95,12 +95,13 @@ export async function GET(req: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[PROJECTS_GET]", error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
       { 
         error: "Failed to fetch projects",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined 
       },
       { status: 500 }
     );
@@ -177,12 +178,13 @@ export async function POST(req: Request) {
       data: formatProjectResponse(project)
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("[PROJECTS_POST]", error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
       { 
         error: "Failed to create project",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined 
       },
       { status: 500 }
     );
