@@ -1,0 +1,44 @@
+name: Database Migrations
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'prisma/**'
+      - '.github/workflows/migrate.yml'
+
+jobs:
+  migrate:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Prisma
+        run: npm install -g prisma
+
+      - name: Set up environment variables
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          echo "NODE_ENV=production" >> .env
+
+      - name: Run Prisma Migrate
+        run: npx prisma migrate deploy
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Verify Database Connection
+        run: npx prisma db execute --file ./prisma/verify-connection.sql --schema=./prisma/schema.prisma
