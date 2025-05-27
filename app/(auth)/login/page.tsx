@@ -21,8 +21,8 @@ export default function LoginPage() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              "This portal has transformed how we manage our HR processes. It's
-              intuitive, efficient, and exactly what we needed."
+              &ldquo;This portal has transformed how we manage our HR processes. It&apos;s
+              intuitive, efficient, and exactly what we needed.&rdquo;
             </p>
             <footer className="text-sm">Sofia Davis</footer>
           </blockquote>

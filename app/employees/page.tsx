@@ -131,7 +131,7 @@ export default function EmployeesPage() {
           <CardHeader className="pb-3">
             <CardTitle>Employee Directory</CardTitle>
             <CardDescription>
-              Manage your company's employees and their information.
+              Manage your company&apos;s employees and their information.
             </CardDescription>
           </CardHeader>
           <CardContent>

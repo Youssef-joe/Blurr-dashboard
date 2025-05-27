@@ -42,7 +42,7 @@ export default async function ProjectDetailPage({
     JSON.parse(project.teamMembers as string).includes(session.user.id);
   
   if (!hasAccess) {
-    return <div>You don't have access to this project</div>;
+    return <div>You don&apos;t have access to this project</div>;
   }
 
   const teamMembers = JSON.parse(project.teamMembers as string) || [];

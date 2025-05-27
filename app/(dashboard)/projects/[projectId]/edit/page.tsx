@@ -24,7 +24,7 @@ export default async function EditProjectPage({
 
   // Only the project manager can edit the project
   if (project.managerId !== session.user.id) {
-    return <div>You don't have permission to edit this project</div>;
+    return <div>You don&apos;t have permission to edit this project</div>;
   }
 
   const handleSubmit = async (data: any) => {
